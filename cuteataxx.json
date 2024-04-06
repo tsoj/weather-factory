@@ -1,6 +1,6 @@
 {
     "engine": "engine",
-    "book": "book.epd",
+    "book": "book.txt",
     "games": 16,
     "tc": 5,
     "hash": 8,
