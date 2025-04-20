@@ -22,6 +22,5 @@ class Graph:
         for name, value in param_values.items():
             plt.plot(self.time, value, label=name)
         plt.legend(fontsize=6, loc="upper left")
-        plt.savefig(f"tuner/{file_name}", dpi=250)
+        plt.savefig(f"{file_name}", dpi=250)
         plt.clf()
-        
