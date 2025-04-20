@@ -2,7 +2,7 @@ from cutechess import CutechessMan
 from dataclasses import dataclass
 from random import randint
 import copy
-
+from typing import Optional
 
 @dataclass
 class Param:
@@ -11,10 +11,17 @@ class Param:
     min_value: int
     max_value: int
     step: float
+    start_val: Optional[float] = None
 
     def __post_init__(self):
-        self.start_val: float = self.value
-        assert self.step > 0
+        if self.start_val is None:
+            self.start_val = self.value
+        if self.step <= 0:
+             raise ValueError(f"Step must be positive, got {self.step} for param {self.name}")
+        # Clamp initial value just in case, though artificial params start at 0
+        self.start_val = min(max(self.start_val, self.min_value), self.max_value)
+        # Clamp current value
+        self.value = min(max(self.value, self.min_value), self.max_value)
 
     def get(self) -> int:
         return round(self.value)

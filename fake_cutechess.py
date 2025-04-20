@@ -1,4 +1,4 @@
-# --- START OF FILE fake_cutechess.py ---
+
 
 import random
 import math
