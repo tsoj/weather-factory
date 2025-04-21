@@ -101,14 +101,14 @@ class ParamGenerator:
             influences.append(influence)
 
             # Generate modification amount based on lognormal distribution
-            change_amount = self.generate_lognormal_sample() * rel_change
+            change_amount = self.generate_lognormal_sample() * 0.1
 
             # Randomly decide if change is positive or negative
             if self.rng.random() < 0.5:
                 change_amount = -change_amount
 
             # Calculate optimal value as start value plus change
-            optimal_value = param.start_val + change_amount
+            optimal_value = param.start_val * (1.0 + self.rng.uniform(-rel_change, rel_change)) + change_amount
 
             # Ensure optimal value is within parameter bounds
             optimal_value = min(max(optimal_value, param.min_value), param.max_value)

@@ -17,7 +17,7 @@ from scipy.stats import lognorm
 
 from spsa import Param, SpsaParams, SpsaTuner
 from cutechess import CutechessMan, MatchResult
-from fake_cutechess import FakeCutechessMan, FakeSimConfig
+from fake_cutechess import FakeCutechessMan, FakeSimConfig, calculate_total_weighted_deviation
 from param_gen import ParamGenerator
 from graph import Graph
 
@@ -227,18 +227,18 @@ def load_state(
         return None
 
 
-def print_distance_to_optimum(params: List[Param], optimal_values: List[float]):
+def print_distance_to_optimum(sim_config: FakeSimConfig, params: List[Param]):
     """Print distance metrics between current parameters and optimal values."""
     total_dist = 0
     max_dist = 0
 
-    if len(params) != len(optimal_values):
+    if len(params) != len(sim_config.optimal_values):
         print("Warning: Mismatch between final params and optimal offsets count.")
         return -1.0, -1.0
 
     print(f"  Parameters:")
     for i, param in enumerate(params):
-        optimal_value = optimal_values[i]
+        optimal_value = sim_config.optimal_values[i]
         diff = abs(param.value - optimal_value)
         total_dist += diff
         max_dist = max(max_dist, diff)
@@ -247,8 +247,9 @@ def print_distance_to_optimum(params: List[Param], optimal_values: List[float]):
 
     avg_dist = total_dist / len(params) if params else 0
 
+    deviation = calculate_total_weighted_deviation(sim_config, params)
 
-    print(f"  Avg Abs Dist to Optimum: {avg_dist:.4f}, Max Abs Dist: {max_dist:.4f}")
+    print(f"  Avg Abs Dist to Optimum: {avg_dist:.4f}, Max Abs Dist: {max_dist:.4f}, Deviation: {deviation:.4f}")
 
 
 def main():
@@ -445,7 +446,7 @@ def main():
 
             # Print distance to optimum if simulating
             if is_simulating and hasattr(runner, 'sim_config'):
-                print_distance_to_optimum(spsa.params, runner.sim_config.optimal_values)
+                print_distance_to_optimum(runner.sim_config, spsa.params)
 
             print("-" * 20)
 
@@ -503,7 +504,7 @@ def main():
                 else:
                     print(f"  Estimated Elo vs Initial Params: N/A (Initial was optimal)")
 
-            print_distance_to_optimum(spsa.params, runner.sim_config.optimal_values)
+            print_distance_to_optimum(runner.sim_config, spsa.params)
 
 
 if __name__ == "__main__":

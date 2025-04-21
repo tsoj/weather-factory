@@ -5,7 +5,7 @@ import copy
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional, Any
 
-from spsa import Param
+from param import Param
 from cutechess import MatchResult
 
 
@@ -56,6 +56,25 @@ class FakeSimConfig:
             print(f"  Elo Scaling Factor (Elo per unit deviation): {self.elo_per_deviation_unit:.4f}")
 
 
+
+def calculate_total_weighted_deviation(sim_config: FakeSimConfig, current_params: List[Param]) -> float:
+    """
+    Calculate how far the current parameters are from the optimal values.
+    Lower is better (closer to optimal).
+    """
+    total_deviation = 0.0
+
+    for i, current_param in enumerate(current_params):
+        influence = sim_config.parameter_influences[i]
+        optimal_value = sim_config.optimal_values[i]
+
+        # Calculate deviation from the optimal value
+        deviation = abs(round(current_param.value) - round(optimal_value))
+        weighted_deviation = influence * deviation
+        total_deviation += weighted_deviation
+
+    return total_deviation
+
 class FakeCutechessMan:
     """
     Simulates chess engine match results based on parameter values' proximity
@@ -95,10 +114,10 @@ class FakeCutechessMan:
         print("--- FakeCutechess Simulation Initialized ---")
         print(f"Simulating {self.games} games per match.")
         print("Target Optimal Values:")
-        for name, optimal in zip(self.param_names, self.sim_config.optimal_values):
+        for (name, optimal) in zip(self.param_names, self.sim_config.optimal_values):
             print(f"  {name}: {optimal:.3f}")
         print("Parameter Influences:")
-        for name, influence in zip(self.param_names, self.sim_config.parameter_influences):
+        for (name, influence) in zip(self.param_names, self.sim_config.parameter_influences):
             print(f"  {name}: {influence:.3f}")
         print(f"Target Elo Advantage (Optimal vs Initial): {self.sim_config.base_elo_advantage}")
         print(f"Initial Total Weighted Deviation: {self.sim_config.initial_total_weighted_deviation:.4f}")
@@ -106,49 +125,6 @@ class FakeCutechessMan:
         print(f"Base Draw Rate: {self.sim_config.base_draw_rate}")
         print(f"Draw Rate Elo Sensitivity: {self.sim_config.draw_rate_elo_sensitivity}")
         print("------------------------------------------")
-
-    def _parse_uci_params(self, uci_strings: List[str]) -> Dict[str, float]:
-        """Parse UCI parameter strings into a dictionary of values."""
-        parsed_params = {}
-        pattern = re.compile(r"option\.([\w\s]+?)\s*=\s*(-?[\d\.]+)")
-
-        for uci_str in uci_strings:
-            match = pattern.match(uci_str)
-            if match:
-                name = match.group(1).strip()
-                try:
-                    value = float(match.group(2))
-                    parsed_params[name] = value
-                except ValueError:
-                    print(f"Warning: Could not parse value in '{uci_str}'")
-            else:
-                print(f"Warning: Could not parse UCI string '{uci_str}'")
-
-        return parsed_params
-
-    def _calculate_total_weighted_deviation(self, current_params: Dict[str, float]) -> float:
-        """
-        Calculate how far the current parameters are from the optimal values.
-        Lower is better (closer to optimal).
-        """
-        total_deviation = 0.0
-
-        for i, param_name in enumerate(self.param_names):
-            influence = self.sim_config.parameter_influences[i]
-            optimal_value = self.sim_config.optimal_values[i]
-
-            # Get current value or use initial if not found
-            current_value = current_params.get(
-                param_name,
-                self.initial_params[i].start_val
-            )
-
-            # Calculate deviation from the optimal value
-            deviation = abs(current_value - optimal_value)
-            weighted_deviation = influence * deviation
-            total_deviation += weighted_deviation
-
-        return total_deviation
 
     def _get_elo_diff(self, deviation_a: float, deviation_b: float) -> float:
         """Convert difference in deviations to Elo difference."""
@@ -192,15 +168,12 @@ class FakeCutechessMan:
 
         return win_prob_a, loss_prob_a, draw_prob
 
-    def run(self, params_a_uci: List[str], params_b_uci: List[str]) -> MatchResult:
+    def run(self, params_a: List[Param], params_b: List[Param]) -> MatchResult:
         """Simulate a match between two parameter sets."""
-        # Parse UCI parameters
-        params_a_dict = self._parse_uci_params(params_a_uci)
-        params_b_dict = self._parse_uci_params(params_b_uci)
 
         # Calculate total deviation from optimal for each set
-        deviation_a = self._calculate_total_weighted_deviation(params_a_dict)
-        deviation_b = self._calculate_total_weighted_deviation(params_b_dict)
+        deviation_a = calculate_total_weighted_deviation(self.sim_config, params_a)
+        deviation_b = calculate_total_weighted_deviation(self.sim_config, params_b)
 
         # Calculate Elo difference
         elo_diff = self._get_elo_diff(deviation_a, deviation_b)

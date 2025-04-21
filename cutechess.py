@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from subprocess import PIPE, Popen
 from pathlib import Path
+from param import Param
 
 
 @dataclass
@@ -65,8 +66,11 @@ class CutechessMan:
             f"-pgnout {self.pgnout}"
         )
 
-    def run(self, params_a: list[str], params_b: list[str]) -> MatchResult:
-        cmd = self.get_cutechess_cmd(params_a, params_b)
+    def run(self, params_a: list[Param], params_b: list[Param]) -> MatchResult:
+
+        uci_params_a = [p.as_uci for p in params_a]
+        uci_params_b = [p.as_uci for p in params_b]
+        cmd = self.get_cutechess_cmd(uci_params_a, uci_params_b)
         print(cmd)
         cutechess = Popen(cmd.split(), stdout=PIPE)
 
