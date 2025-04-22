@@ -26,6 +26,10 @@ class Param:
         """Update parameter by amount, staying within bounds"""
         self.value = min(max(self.value + amt, self.min_value), self.max_value)
 
+    def update_step(self, new_step: float):
+        """Updates the step size, ensuring it stays within bounds."""
+        self.step = max(1.0, new_step)
+
     @property
     def as_uci(self) -> str:
         """Format as UCI parameter string"""

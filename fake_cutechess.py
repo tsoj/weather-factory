@@ -14,6 +14,8 @@ class FakeSimConfig:
     """Configuration for the chess engine parameter simulation."""
     # List of optimal parameter values
     optimal_values: List[float]
+    # List of initial parameter values
+    initial_params: List[Param]
     # How much each parameter influences engine strength (0-1)
     parameter_influences: List[float]
     # Elo advantage of the optimal parameters compared to the initial parameters
@@ -26,12 +28,13 @@ class FakeSimConfig:
     initial_total_weighted_deviation: float = field(init=False, default=0.0)
     elo_per_deviation_unit: float = field(init=False, default=0.0)
 
-    def calculate_scaling(self, initial_params: List[Param]):
+
+    def __post_init__(self):
         """Calculate initial deviation and Elo scaling factor."""
         total_dev = 0.0
         print("Calculating initial deviation for Elo scaling:")
 
-        for i, param in enumerate(initial_params):
+        for i, param in enumerate(self.initial_params):
             optimal_value = self.optimal_values[i]
             influence = self.parameter_influences[i]
 
@@ -55,25 +58,23 @@ class FakeSimConfig:
             self.elo_per_deviation_unit = self.base_elo_advantage / self.initial_total_weighted_deviation
             print(f"  Elo Scaling Factor (Elo per unit deviation): {self.elo_per_deviation_unit:.4f}")
 
+    def calculate_total_weighted_deviation(self, current_params: List[Param]) -> float:
+        """
+        Calculate how far the current parameters are from the optimal values.
+        Lower is better (closer to optimal).
+        """
+        total_deviation = 0.0
 
+        for i, current_param in enumerate(current_params):
+            influence = self.parameter_influences[i]
+            optimal_value = self.optimal_values[i]
 
-def calculate_total_weighted_deviation(sim_config: FakeSimConfig, current_params: List[Param]) -> float:
-    """
-    Calculate how far the current parameters are from the optimal values.
-    Lower is better (closer to optimal).
-    """
-    total_deviation = 0.0
+            # Calculate deviation from the optimal value
+            deviation = abs(round(current_param.value) - round(optimal_value))
+            weighted_deviation = influence * deviation
+            total_deviation += weighted_deviation
 
-    for i, current_param in enumerate(current_params):
-        influence = sim_config.parameter_influences[i]
-        optimal_value = sim_config.optimal_values[i]
-
-        # Calculate deviation from the optimal value
-        deviation = abs(round(current_param.value) - round(optimal_value))
-        weighted_deviation = influence * deviation
-        total_deviation += weighted_deviation
-
-    return total_deviation
+        return total_deviation
 
 class FakeCutechessMan:
     """
@@ -82,7 +83,6 @@ class FakeCutechessMan:
     """
     def __init__(
         self,
-        initial_params: List[Param],
         sim_config: FakeSimConfig,
         games: int = 32,
         engine_name: str = "fake_engine",
@@ -95,20 +95,17 @@ class FakeCutechessMan:
         use_fastchess: bool = True  # Not used in simulation
     ):
         # Store initial parameters
-        self.initial_params = copy.deepcopy(initial_params)
-        self.sim_config = sim_config
+        self.sim_config = copy.deepcopy(sim_config)
         self.games = games
         self.engine_name = engine_name
-        self.param_names = [p.name for p in self.initial_params]
+        self.param_names = [p.name for p in self.sim_config.initial_params]
 
         # Validate configuration
-        if len(self.initial_params) != len(sim_config.optimal_values):
+        if len(self.sim_config.initial_params) != len(sim_config.optimal_values):
             raise ValueError("Mismatch between initial_params and optimal_values length")
-        if len(self.initial_params) != len(sim_config.parameter_influences):
+        if len(self.sim_config.initial_params) != len(sim_config.parameter_influences):
             raise ValueError("Mismatch between initial_params and parameter_influences length")
 
-        # Calculate scaling factor for Elo calculations
-        self.sim_config.calculate_scaling(self.initial_params)
 
         # Print simulation configuration
         print("--- FakeCutechess Simulation Initialized ---")
@@ -130,6 +127,7 @@ class FakeCutechessMan:
         """Convert difference in deviations to Elo difference."""
         # Smaller deviation means stronger engine
         elo_diff = (deviation_b - deviation_a) * self.sim_config.elo_per_deviation_unit
+        print("elo_diff:", elo_diff)
         return elo_diff
 
     def _get_probabilities(self, elo_diff: float) -> Tuple[float, float, float]:
@@ -172,8 +170,8 @@ class FakeCutechessMan:
         """Simulate a match between two parameter sets."""
 
         # Calculate total deviation from optimal for each set
-        deviation_a = calculate_total_weighted_deviation(self.sim_config, params_a)
-        deviation_b = calculate_total_weighted_deviation(self.sim_config, params_b)
+        deviation_a = self.sim_config.calculate_total_weighted_deviation(params_a)
+        deviation_b = self.sim_config.calculate_total_weighted_deviation(params_b)
 
         # Calculate Elo difference
         elo_diff = self._get_elo_diff(deviation_a, deviation_b)

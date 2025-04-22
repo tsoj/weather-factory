@@ -17,7 +17,7 @@ from scipy.stats import lognorm
 
 from spsa import Param, SpsaParams, SpsaTuner
 from cutechess import CutechessMan, MatchResult
-from fake_cutechess import FakeCutechessMan, FakeSimConfig, calculate_total_weighted_deviation
+from fake_cutechess import FakeCutechessMan, FakeSimConfig
 from param_gen import ParamGenerator
 from graph import Graph
 
@@ -247,7 +247,7 @@ def print_distance_to_optimum(sim_config: FakeSimConfig, params: List[Param]):
 
     avg_dist = total_dist / len(params) if params else 0
 
-    deviation = calculate_total_weighted_deviation(sim_config, params)
+    deviation = sim_config.calculate_total_weighted_deviation(params)
 
     print(f"  Avg Abs Dist to Optimum: {avg_dist:.4f}, Max Abs Dist: {max_dist:.4f}, Deviation: {deviation:.4f}")
 
@@ -299,6 +299,7 @@ def main():
 
         # Create simulation configuration
         sim_config = {
+            "initial_params": initial_params_for_sim,
             "optimal_values": optimal_values,
             "parameter_influences": parameter_influences,
             "base_elo_advantage": args.sim_base_elo,
@@ -369,7 +370,6 @@ def main():
             exit(1)
 
         runner = FakeCutechessMan(
-            initial_params=initial_params_for_sim,
             sim_config=FakeSimConfig(**sim_config),
             games=games_per_iter,
             engine_name=cc_config.get("engine", "fake_engine"),
